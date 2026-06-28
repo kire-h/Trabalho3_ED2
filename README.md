@@ -1,4 +1,4 @@
-# RideSmart — Modelagem e Análise de Rotas Urbanas com Grafos
+# Modelagem e Análise de Rotas Urbanas com Grafos
 
 Ferramenta para análise de rotas urbanas multimodais (caminhada + carro) a partir de dados reais do OpenStreetMap. Dado um ponto de origem **A**, um destino **B** e uma distância máxima de caminhada **X**, o sistema encontra o ponto de embarque **P** que minimiza o custo total da rota **A → P** (a pé) + **P → B** (carro).
 
@@ -66,6 +66,7 @@ jupyter notebook A_Star_Final.ipynb
 
 ```text
 ├── A_Star_Final.ipynb             # Implementação do algoritmo A* com heurística geográfica
+├── images                         # Pasta com as imagens para o repositório
 ├── Dijkstra_final.ipynb           # Dijkstra Simples e Dijkstra com Heap (benchmark)
 ├── Dijkstra_Bidirecional.ipynb    # Dijkstra Bidirecional via NetworkX
 └── README.md                      # Documentação principal
@@ -105,33 +106,86 @@ A velocidade de caminhada foi fixada em **v_walk = 1,4 m/s**.
 
 ### Dijkstra Simples — O(V²)
 
-Implementado manualmente. A cada iteração, percorre linearmente todos os nós não visitados para selecionar o de menor distância acumulada. Serve como referência didática para comparação com a versão com heap.
+Implementado manualmente sem estruturas auxiliares. A cada iteração, percorre **linearmente** todos os nós ainda não visitados para encontrar o de menor custo acumulado — operação O(V) repetida V vezes, resultando em O(V²) no total. Funciona corretamente, mas se torna proibitivamente lento em grafos grandes. Neste projeto serve como **referência didática** para demonstrar, por contraste, o ganho real do Dijkstra com Heap.
 
 ### Dijkstra com Heap — O((V + E) log V)
 
-Implementado manualmente com `heapq`. Extrai o nó de menor custo em O(log V), reduzindo drasticamente o número de operações em grafos esparsos. Utilizado como algoritmo principal para avaliar todos os 82 candidatos P.
+Também implementado manualmente, mas usando `heapq` (fila de prioridade por min-heap). Em vez de varrer todos os nós a cada iteração, extrai o de menor custo em **O(log V)** — tornando o algoritmo drasticamente mais eficiente em grafos esparsos como redes viárias. Foi o algoritmo principal do projeto: avaliou todos os 82 candidatos P em 2,62 s, contra 135,67 s do Dijkstra Simples para o mesmo conjunto (51,7× mais rápido), com resultados idênticos.
 
-### A\* com Heurística Geográfica
+### A\* com Heurística Geográfica — O((V + E) log V)
 
-Extensão do Dijkstra com função heurística `h(u)` baseada na distância Haversine entre o nó atual e B. Para `length`, `h(u)` é a distância em metros (admissível). Para `travel_time`, converte pela velocidade máxima do grafo (120 km/h ≈ 33,3 m/s). Complexidade teórica O((V + E) log V), com menor constante quando a heurística é eficaz.
+Extensão inteligente do Dijkstra: além do custo acumulado do caminho percorrido, o A\* usa uma **função heurística `h(u)`** que estima o custo restante até o destino B. Isso guia a busca na direção certa, evitando explorar nós que estão "indo para o lado errado".
+
+A heurística usada é a **distância em linha reta** (great circle / Haversine) entre o nó atual e B, calculada a partir das coordenadas geográficas reais (latitude e longitude):
+
+```python
+dist_metros = ox.distance.great_circle(
+    G.nodes[u]['y'], G.nodes[u]['x'],  # nó atual
+    G.nodes[v]['y'], G.nodes[v]['x']   # destino B
+)
+```
+
+Essa escolha é **admissível** — nunca superestima o custo real, pois nenhuma rua pode ser mais curta do que a linha reta entre dois pontos. Para o peso `travel_time`, a distância é convertida pela velocidade máxima do grafo (120 km/h ≈ 33,3 m/s), mantendo a admissibilidade para tempo.
 
 ### Dijkstra Bidirecional
 
-Executa duas buscas simultâneas: da origem A e do destino B no grafo reverso. As frentes convergem pelo meio do caminho, reduzindo o número de nós expandidos. Implementado via `nx.bidirectional_dijkstra` do NetworkX. Especialmente vantajoso para pares A–B distantes.
+Em vez de partir apenas de A e expandir até alcançar B, o Dijkstra Bidirecional executa **duas buscas simultâneas**: uma da origem A para frente, e outra do destino B para trás (no grafo reverso). As duas frentes avançam em paralelo e se encontram no meio do caminho, reduzindo o espaço total de nós expandidos — especialmente vantajoso quando A e B estão distantes entre si, como no cenário deste projeto. Implementado via `nx.bidirectional_dijkstra` do NetworkX, produziu resultados idênticos aos demais algoritmos em todos os cenários.
 
 ---
 
 ## 📈 Resultados
 
-### Comparação dos 5 cenários (Dijkstra Heap)
+### Comparação dos 5 cenários por algoritmo
+
+Todos os algoritmos produziram distâncias e tempos equivalentes nos cenários 2, 3, 4 e 5. No cenário 1 (menor distância), o Bidirecional escolheu um P diferente (walk 250 m, nó `501033902`) do Heap e do A* (walk 458 m, nó `501834700`), embora a distância total tenha ficado igual (2.990,1 m) — evidência de que existem múltiplos pontos P com a mesma distância total ótima, e cada algoritmo desempatou de forma diferente internamente.
+
+**Dijkstra Simples**
+
+![Mapa Dijkstra Simples](images\DJ_simples.png)
 
 | Cenário | Distância (m) | Tempo (s) |
 |---|:---:|:---:|
 | 1 – Menor distância (P, walk 458 m) | 2.990,1 | 533,8 |
 | 2 – Mais rápido s/ trânsito (P, walk 144 m) | 3.238,5 | 320,9 |
 | 3 – Mais rápido c/ trânsito (P, walk 144 m) | 3.238,5 | 630,9 |
-| 4 – Sem caminhada (A→B direto) | 3.238,5 | 320,9 |
+| 4 – Sem caminhada (A∉drive, walk 144 m) | 3.238,5 | 320,9 |
 | 5 – Ganho ao caminhar (vs. C4) | +248,3 m | 0,0 s |
+
+**Dijkstra Heap**
+
+![Mapa Dijkstra Heap](images/DJ_heap.png)
+
+| Cenário | Distância (m) | Tempo (s) |
+|---|:---:|:---:|
+| 1 – Menor distância (P, walk 458 m) | 2.990,1 | 533,8 |
+| 2 – Mais rápido s/ trânsito (P, walk 144 m) | 3.238,5 | 320,9 |
+| 3 – Mais rápido c/ trânsito (P, walk 144 m) | 3.238,5 | 630,9 |
+| 4 – Sem caminhada (A∉drive, walk 144 m) | 3.238,5 | 320,9 |
+| 5 – Ganho ao caminhar (vs. C4) | +248,3 m | 0,0 s |
+
+**A\* com Heurística Geográfica**
+
+![Mapa A*](images/A_star.png)
+
+| Cenário | Distância (m) | Tempo (s) |
+|---|:---:|:---:|
+| 1 – Menor distância (P, walk 458 m) | 2.990,1 | 2.859,3 |
+| 2 – Mais rápido s/ trânsito (P, walk 144 m) | 3.238,5 | 320,0 |
+| 3 – Mais rápido c/ trânsito (P, walk 144 m) | 3.238,5 | 629,1 |
+| 4 – Sem caminhada (A∉drive, walk 144 m) | 3.238,5 | 320,0 |
+| 5 – Ganho ao caminhar (vs. C4) | +248,3 m | 0,0 s |
+
+**Dijkstra Bidirecional**
+
+![Mapa Dijkstra Bidirecional](images/DJ_bi.png)
+
+| Cenário | Distância (m) | Tempo (s) |
+|---|:---:|:---:|
+| 1 – Menor distância (P, walk 250 m) | 2.990,1 | 412,3 |
+| 2 – Mais rápido s/ trânsito (P, walk 144 m) | 3.238,4 | 320,9 |
+| 3 – Mais rápido c/ trânsito (P, walk 144 m) | 3.238,4 | 626,2 |
+| 4 – Sem caminhada (A∉drive, walk 144 m) | 3.238,4 | 320,9 |
+| 5 – Ganho ao caminhar (vs. C4) | +248,2 m | 0,0 s |
 
 ### Benchmark: Dijkstra Simples vs. Heap
 
@@ -140,11 +194,10 @@ Executa duas buscas simultâneas: da origem A e do destino B no grafo reverso. A
 | Distância | 0,6875 | 0,0105 | 65× |
 | Tempo | 1,0088 | 0,0176 | 57× |
 
-Ao avaliar todos os 82 candidatos P, o Heap concluiu em **2,62 s** contra **135,67 s** do Simples (51,7× mais rápido), com resultados idênticos em todos os cenários.
-
+#### Ao avaliar todos os 82 candidatos P, o Heap concluiu em **2,62 s** contra **135,67 s** do Simples (51,7× mais rápido), com resultados idênticos em todos os cenários.
 ---
 
-## ❓ Perguntas e Respostas
+##  Perguntas e Respostas
 
 ### 1. Como o problema foi modelado como grafo?
 
@@ -174,9 +227,8 @@ Caminhar prejudicou explicitamente no **cenário 1** (menor distância): o P esc
 
 Não. O cenário de menor distância (C1, 2.990,1 m) levou 533,8 s, enquanto o cenário mais rápido (C2/C4, 3.238,5 m) levou apenas 320,9 s. A rota mais curta em metros não corresponde à mais rápida em tempo porque envolve mais caminhada (baixa velocidade) e trechos de carro menos eficientes. O trade-off entre distância e tempo é um resultado central do trabalho.
 
-### 8. O A\* expandiu menos nós que o Dijkstra?
-
-Sim, conceitualmente. O A\* guia a busca com uma heurística geográfica (distância Haversine até B), concentrando a expansão na direção do destino e ignorando regiões improváveis do grafo. Isso resulta em menos nós expandidos em relação ao Dijkstra clássico. Neste experimento específico, porém, o overhead do cálculo da heurística por nó superou o ganho em nós economizados, fazendo com que o tempo de execução do A\* não fosse significativamente inferior ao do Dijkstra com Heap. Os resultados produzidos foram idênticos.
+### 8. O A* expandiu menos nós que o Dijkstra?
+Sim, e os dados do experimento comprovam. O A* expandiu apenas 228 nós contra 753 do Dijkstra Heap — uma redução de 69,7%. A heurística geográfica (distância Haversine até B) guia a busca na direção do destino, evitando expandir regiões do grafo que claramente não fazem parte do caminho ótimo. Apesar disso, o ganho em nós não se traduziu diretamente em ganho de tempo de execução neste experimento, pois o overhead do cálculo da heurística por nó parcialmente compensou a economia. Os resultados produzidos foram idênticos aos do Dijkstra.
 
 ### 9. O Dijkstra com Heap foi mais eficiente que o Dijkstra Simples?
 
