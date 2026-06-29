@@ -104,15 +104,15 @@ A velocidade de caminhada foi fixada em **v_walk = 1,4 m/s**.
 
 ## 🔬 Algoritmos Implementados
 
-### Dijkstra Simples — O(V²)
+### Dijkstra Simples
 
 Implementado manualmente sem estruturas auxiliares. A cada iteração, percorre **linearmente** todos os nós ainda não visitados para encontrar o de menor custo acumulado — operação O(V) repetida V vezes, resultando em O(V²) no total. Funciona corretamente, mas se torna proibitivamente lento em grafos grandes. Neste projeto serve como **referência didática** para demonstrar, por contraste, o ganho real do Dijkstra com Heap.
 
-### Dijkstra com Heap — O((V + E) log V)
+### Dijkstra com Heap
 
 Também implementado manualmente, mas usando `heapq` (fila de prioridade por min-heap). Em vez de varrer todos os nós a cada iteração, extrai o de menor custo em **O(log V)** — tornando o algoritmo drasticamente mais eficiente em grafos esparsos como redes viárias. Foi o algoritmo principal do projeto: avaliou todos os 82 candidatos P em 2,62 s, contra 135,67 s do Dijkstra Simples para o mesmo conjunto (51,7× mais rápido), com resultados idênticos.
 
-### A\* com Heurística Geográfica — O((V + E) log V)
+### A\* com Heurística Geográfica
 
 Extensão inteligente do Dijkstra: além do custo acumulado do caminho percorrido, o A\* usa uma **função heurística `h(u)`** que estima o custo restante até o destino B. Isso guia a busca na direção certa, evitando explorar nós que estão "indo para o lado errado".
 
