@@ -169,7 +169,7 @@ Todos os algoritmos produziram distâncias e tempos equivalentes nos cenários 2
 
 | Cenário | Distância (m) | Tempo (s) |
 |---|:---:|:---:|
-| 1 – Menor distância (P, walk 458 m) | 2.990,1 | 2.859,3 |
+| 1 – Menor distância (P, walk 458 m) | 2.990,1 | 533.8 |
 | 2 – Mais rápido s/ trânsito (P, walk 144 m) | 3.238,5 | 320,0 |
 | 3 – Mais rápido c/ trânsito (P, walk 144 m) | 3.238,5 | 629,1 |
 | 4 – Sem caminhada (A∉drive, walk 144 m) | 3.238,5 | 320,0 |
